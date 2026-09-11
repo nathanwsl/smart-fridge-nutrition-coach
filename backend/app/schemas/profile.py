@@ -25,3 +25,12 @@ class ProfileCreate(BaseModel):
     age: int = Field(..., ge=1, le=120)
     niveau_activite: NiveauActivite
     objectif: Objectif
+
+
+class ProfileResult(BaseModel):
+    bmr: float
+    tdee: float
+    target_calories: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
