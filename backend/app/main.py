@@ -2,11 +2,12 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.routers import profile
+from app.routers import profile, recipes
 
 app = FastAPI(title="Smart Fridge & Nutrition Coach")
 
 app.include_router(profile.router)
+app.include_router(recipes.router)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
