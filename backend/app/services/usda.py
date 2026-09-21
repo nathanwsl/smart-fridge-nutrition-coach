@@ -18,7 +18,7 @@ async def search_food(client: httpx.AsyncClient, query: str) -> dict | None:
     body = {
         "query": query,
         "dataType": ["SR Legacy", "Foundation"],
-        "pageSize": 1,
+        "pageSize": 5,
     }
 
     response = await client.post(
@@ -33,7 +33,21 @@ async def search_food(client: httpx.AsyncClient, query: str) -> dict | None:
     if data.get("totalHits", 0) == 0:
         return None
 
-    return data["foods"][0]
+    return _pick_best_match(query, data["foods"])
+
+
+def _pick_best_match(query: str, foods: list[dict]) -> dict | None:
+    query_words = set(query.lower().split())
+
+    def score(food: dict) -> int:
+        description_words = set(food.get("description", "").lower().replace(",", " ").split())
+        return len(query_words & description_words)
+
+    best = max(foods, key=score)
+    if score(best) == 0:
+        return None
+
+    return best
 
 
 def extract_nutrients(food: dict) -> dict:

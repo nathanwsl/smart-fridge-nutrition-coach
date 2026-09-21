@@ -1,3 +1,6 @@
+"""
+Schémas Pydantic pour les recettes — Séquence 2.
+"""
 from pydantic import BaseModel, Field, model_validator
 
 

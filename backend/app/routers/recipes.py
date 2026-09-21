@@ -1,43 +1,68 @@
-"""
-Routes de debug pour tester la Séquence 2 — TheMealDB + USDA.
-"""
-from fastapi import APIRouter
+import asyncio
+
+from fastapi import APIRouter, Depends, HTTPException
 import httpx
 
 from app.services import themealdb, usda, nutrition_pipeline
 from app.schemas.recipe import RawMealDBRecipe
+from app.security.auth import get_current_user
+from app.services.supabase_client import supabase
 
-router = APIRouter(prefix="/recipes", tags=["Recettes (debug)"])
+router = APIRouter(prefix="/recipes", tags=["Recettes"])
 
 
-@router.get("/debug/search")
+@router.get("/suggestions")
+async def get_suggestions(current_user: str = Depends(get_current_user), limit: int = 3):
+    """
+    Suggestions de recettes basées sur le frigo de l'utilisateur connecté.
+    Croise TheMealDB (recherche) et USDA (nutrition) via le pipeline async.
+    """
+    fridge_response = (
+        supabase.table("fridge_items").select("*").eq("username", current_user).execute()
+    )
+    fridge_ingredients = [item["ingredient_name"] for item in fridge_response.data]
+
+    if not fridge_ingredients:
+        raise HTTPException(status_code=400, detail="Ton frigo est vide, ajoute des ingrédients d'abord")
+
+    async with httpx.AsyncClient() as client:
+        recipes = await nutrition_pipeline.find_recipes_for_fridge(client, fridge_ingredients)
+        top_recipes = recipes[:limit]
+
+        results = await asyncio.gather(*[
+            nutrition_pipeline.compute_recipe_nutrition(client, r["idMeal"])
+            for r in top_recipes
+        ])
+
+    return {"fridge_ingredients": fridge_ingredients, "suggestions": results}
+
+
+@router.get("/debug/search", tags=["Recettes (debug)"])
 async def debug_search(ingredient: str):
     async with httpx.AsyncClient() as client:
         meals = await themealdb.search_recipes_by_ingredient(client, ingredient)
     return {"count": len(meals), "meals": meals}
 
 
-@router.get("/debug/details/{meal_id}")
+@router.get("/debug/details/{meal_id}", tags=["Recettes (debug)"])
 async def debug_details(meal_id: str):
     async with httpx.AsyncClient() as client:
         meal = await themealdb.get_recipe_details(client, meal_id)
     return meal
 
 
-@router.get("/debug/flatten/{meal_id}")
+@router.get("/debug/flatten/{meal_id}", tags=["Recettes (debug)"])
 async def debug_flatten(meal_id: str):
-    """Teste le validateur Pydantic qui aplatit les ingrédients."""
     async with httpx.AsyncClient() as client:
         raw_meal = await themealdb.get_recipe_details(client, meal_id)
 
     if raw_meal is None:
         return {"error": "Recette introuvable"}
 
-    parsed = RawMealDBRecipe(**raw_meal)
-    return parsed
+    return RawMealDBRecipe(**raw_meal)
 
 
-@router.get("/debug/usda/{query}")
+@router.get("/debug/usda/{query}", tags=["Recettes (debug)"])
 async def debug_usda(query: str):
     async with httpx.AsyncClient() as client:
         food = await usda.search_food(client, query)
@@ -53,9 +78,8 @@ async def debug_usda(query: str):
     }
 
 
-@router.get("/debug/pipeline/{meal_id}")
+@router.get("/debug/pipeline/{meal_id}", tags=["Recettes (debug)"])
 async def debug_pipeline(meal_id: str):
-    """Teste le pipeline complet : recette -> ingrédients -> nutrition USDA."""
     async with httpx.AsyncClient() as client:
         result = await nutrition_pipeline.compute_recipe_nutrition(client, meal_id)
     return result
