@@ -25,7 +25,8 @@ async def get_suggestions(current_user: str = Depends(get_current_user), limit: 
     if not fridge_ingredients:
         raise HTTPException(status_code=400, detail="Ton frigo est vide, ajoute des ingrédients d'abord")
 
-    async with httpx.AsyncClient() as client:
+    timeout = httpx.Timeout(10.0, connect=5.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         recipes = await nutrition_pipeline.find_recipes_for_fridge(client, fridge_ingredients)
         top_recipes = recipes[:limit]
 
@@ -33,6 +34,10 @@ async def get_suggestions(current_user: str = Depends(get_current_user), limit: 
             nutrition_pipeline.compute_recipe_nutrition(client, r["idMeal"])
             for r in top_recipes
         ])
+
+    valid_results = [r for r in results if "error" not in r]
+
+    return {"fridge_ingredients": fridge_ingredients, "suggestions": valid_results}
 
     return {"fridge_ingredients": fridge_ingredients, "suggestions": results}
 
