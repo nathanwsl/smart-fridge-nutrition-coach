@@ -1,7 +1,5 @@
-"""
-Routes de debug pour tester la Séquence 2 — TheMealDB.
-"""
 from fastapi import APIRouter
+from app.services import usda
 import httpx
 
 from app.services import themealdb
@@ -35,3 +33,19 @@ async def debug_flatten(meal_id: str):
 
     parsed = RawMealDBRecipe(**raw_meal)
     return parsed
+
+
+@router.get("/debug/usda/{query}")
+async def debug_usda(query: str):
+    async with httpx.AsyncClient() as client:
+        food = await usda.search_food(client, query)
+
+    if food is None:
+        return {"error": "Aucun aliment brut trouvé"}
+
+    nutrients = usda.extract_nutrients(food)
+    return {
+        "description": food.get("description"),
+        "fdcId": food.get("fdcId"),
+        "nutrients": nutrients,
+    }
