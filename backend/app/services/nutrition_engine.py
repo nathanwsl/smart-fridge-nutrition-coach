@@ -1,6 +1,4 @@
-"""
-Moteur métabolique — Séquence 1.
-"""
+
 from app.schemas.profile import Sexe, NiveauActivite, Objectif
 
 FACTEURS_ACTIVITE = {

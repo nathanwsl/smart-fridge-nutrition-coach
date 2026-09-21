@@ -1,6 +1,4 @@
-"""
-Client Supabase partagé — utilisé comme base de données (table `users`).
-"""
+
 from supabase import create_client, Client
 
 from app.config import get_settings

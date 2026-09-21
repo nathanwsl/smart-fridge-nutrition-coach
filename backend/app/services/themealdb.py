@@ -1,6 +1,4 @@
-"""
-Client asynchrone pour TheMealDB — Séquence 2.
-"""
+
 import httpx
 
 from app.config import get_settings

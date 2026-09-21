@@ -1,8 +1,10 @@
+"""
+Routes de debug pour tester la Séquence 2 — TheMealDB + USDA.
+"""
 from fastapi import APIRouter
-from app.services import usda
 import httpx
 
-from app.services import themealdb
+from app.services import themealdb, usda, nutrition_pipeline
 from app.schemas.recipe import RawMealDBRecipe
 
 router = APIRouter(prefix="/recipes", tags=["Recettes (debug)"])
@@ -49,3 +51,11 @@ async def debug_usda(query: str):
         "fdcId": food.get("fdcId"),
         "nutrients": nutrients,
     }
+
+
+@router.get("/debug/pipeline/{meal_id}")
+async def debug_pipeline(meal_id: str):
+    """Teste le pipeline complet : recette -> ingrédients -> nutrition USDA."""
+    async with httpx.AsyncClient() as client:
+        result = await nutrition_pipeline.compute_recipe_nutrition(client, meal_id)
+    return result
